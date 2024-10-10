@@ -1,113 +1,91 @@
 import { Component } from 'react';
 import './App.css';
-import { hour } from './types'
 import Temperature from './components/Temperature';
 import Loader from './components/Loader';
-import { data } from './dummyData';
+import { HistoryWeather } from './types';
 
-class App extends Component<{}, {days:Array<any>, debug:boolean, meanTemp?:number, medianTemp?:number, minTemp?: number, maxTemp?: number}> {
+class App extends Component<{}, {weather: HistoryWeather | undefined, meanTemp?:number, medianTemp?:number, minTemp?: number, maxTemp?: number}> {
   constructor(props: any) {
     super(props)
     this.state = {
-      days: [],
-      debug: false,
+      weather: undefined,
     }
   }
-  componentDidMount() {    
-    this.getPastForecast(30)
+  componentDidMount() {
+    this.getPastForecast(3)
   }
 
   getPastForecast(daysBack:number) {
-    let allDays = new Array
-    var fetches = []
-    if(this.state.debug) {
-      for(var i=0;i<daysBack;i++) {
-        allDays.push(data)
-      }
-      this.setState({
-        days: allDays
-      })
-      this.setTemps(allDays)
-      return;
-    }
-    for(var i = 0; i < daysBack; i++) {
-      fetches.push(
-        fetch("http://localhost:3001/api/getPastDay?day=" + i + "&lat=57.708870&long=11.974560")
-        .then(function(response) {
-          return response.json()
-        })
-        .then(function(data) {
-          allDays.push(data)
-        })
-      )
-    }
-    Promise.all(fetches).then(() => {
-      this.setState({
-        days: allDays
-      })
-      this.setTemps(allDays)
+
+    fetch("http://localhost:3001/api/getPastDay?day=" + daysBack + "&lat=57.708870&long=11.974560")
+    .then(function(response) {
+      return response.json()
+    })
+    .then((data) => {
+      this.setState({ weather: data })
+      this.setTemps(data)
     })
   }
 
-  setTemps(days:Array<any>) {
+  setTemps(weather:HistoryWeather) {
     const reducer = (accumulator:number, currentValue:number) => accumulator + currentValue;
     var minTemp:number = 0;
     var maxTemp:number = 0;
 
-    if(days.length > 0 ) {
-      let avregesPerDay = days.map((day, idx) => {
-        let temps = day.hourly.data.map((hour:hour) => hour.temperature)
-        /**
-         * Start by calculating the min/max for each hour of the days
-         */
-        if(idx == 0) {
-          minTemp = day.daily.data[0].temperatureMin
-          maxTemp = day.daily.data[0].temperatureMax
-        } else {
-          if(day.daily.data[0].temperatureMin < minTemp) {
-            minTemp = day.daily.data[0].temperatureMin
-          }
-          if(day.daily.data[0].temperatureMax > maxTemp) {
-            maxTemp = day.daily.data[0].temperatureMax
-          }
+    const temperatures = weather.hourly.temperature_2m.filter(temp => temp !== null)
+    temperatures.forEach((temperature, idx) => {
+      /**
+       * Start by calculating the min/max for each hour of the days
+       */
+      if(idx == 0) {
+        minTemp = temperature
+        maxTemp = temperature
+      } else {
+        if(temperature < minTemp) {
+          minTemp = temperature
         }
-
-        /**
-         * Sum all temps from 1 day and calculate median per day
-         */
-        let medianPerDay = temps.reduce(reducer) / 24
-
-        return medianPerDay
-      })
-      this.setState({
-        meanTemp: avregesPerDay.reduce(reducer) / days.length,
-        medianTemp: this.getMedianValue(avregesPerDay),
-        minTemp: minTemp,
-        maxTemp: maxTemp
-      })
-    }
+        if(temperature > maxTemp) {
+          maxTemp = temperature
+        }
+      }
+    })
+  
+    const medianTemp = this.getMedianValue(temperatures);
+    console.log({ medianTemp})
+    this.setState({
+      meanTemp: temperatures.reduce(reducer) / temperatures.length,
+      medianTemp: medianTemp,
+      minTemp: minTemp,
+      maxTemp: maxTemp
+    })
   }
 
-  getMedianValue(days:number[]) {
-    days.sort()
-    if(days.length % 2 == 0) {
+  getMedianValue(temperatures:number[]) {
+    if (temperatures.length === 0) {
+      return 0
+    }
+    temperatures.sort()
+    if(temperatures.length % 2 == 0) {
       // if we got an even number get the two in the middle.
       // add them together and divide by 2 to get the median
-      return (days[days.length/2 - 1] + days[days.length/2 + 1]) / 2
+      const temp1 = temperatures[temperatures.length/2 - 1];
+      const temp2 = temperatures[temperatures.length/2];
+      return (temp1 + temp2) / 2
     }
-    return days[days.length/2]
+    
+    return temperatures[Math.floor(temperatures.length/2)]
   }
 
   render() {
     let coldStyle = "tempItem tempItem--cold"
     let hotStyle = "tempItem tempItem--hot"
     let style = "tempItem"
-
+    console.log('state  ', this.state)
     return (
       <div className="App">
         <div className="container">
-          <h1>Väder i Göteborg senaste {this.state.days.length} dagarna</h1>
-          {this.state.days && this.state.days.length > 0 ?
+          <h1>Väder i Göteborg senaste {5} dagarna</h1>
+          {this.state.minTemp && this.state.maxTemp && this.state.medianTemp && this.state.meanTemp ?
             <>
               <Temperature style={coldStyle}>{this.state.minTemp}</Temperature>
               <Temperature style={hotStyle}>{this.state.maxTemp}</Temperature>
@@ -118,7 +96,7 @@ class App extends Component<{}, {days:Array<any>, debug:boolean, meanTemp?:numbe
             <Loader />
           }
         </div>
-        <a className="footer" href="https://darksky.net/poweredby/" target="_blank">Powered by darksky</a>
+        <a className="footer" href="https://openweathermap.org/" target="_blank">Powered by OpenWeatherMap</a>
       </div>
     );
   }

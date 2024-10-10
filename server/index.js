@@ -1,39 +1,59 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const pino = require('express-pino-logger')();
 const fetch = require("node-fetch");
 var cors = require('cors')
+
+require('dotenv').config()
 
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(pino);
 app.use(cors())
 
-const baseUrl = "https://api.darksky.net/forecast/bc745d8297caf2337149178bea973055/"
+/**
+ * Api documentation https://open-meteo.com/en/docs/historical-weather-api
+ */
+const baseUrl = 'https://archive-api.open-meteo.com/v1/archive';
 
+const cache = {}
 app.get('/api/getPastDay', (req, res) => {
-  /**
-   * Get the data from darsky API
-   */
-  var d = new Date()
-  d.setDate(d.getDate() - req.query.day)
-  var timestamp = Math.round(d.getTime() / 1000)
+  var now = new Date();
   
-  let url = baseUrl + req.query.lat + "," + req.query.long + "," + timestamp + "?units=si"
-  fetch(url)
-  .then(function(response) {
-    return response.json()
-  })
-  .then(function(data) {
-    /**
-     * Return the response to client
-     */
+  var yesterday = new Date();
+  yesterday.setDate(now.getDate() - 2)
+
+  var past = new Date()
+  past.setDate(now.getDate() - parseInt(req.query.day) - 1)
+  
+  const url = `${baseUrl}?latitude=${req.query.lat}&longitude=${req.query.long}&hourly=temperature_2m&start_date=${formatDate(past)}&end_date=${formatDate(yesterday)}`
+
+  if (cache[url]) {
+    console.log('Hit cache')
     res.setHeader('Content-Type', 'application/json')
-    res.send(JSON.stringify(data))
-  })
+    return res.send(JSON.stringify(cache[url]))
+  }
+
+  fetch(url)
+    .then(function(response) {
+      return response.json()
+    })
+    .then(function(data) {
+      cache[url] = data;
+
+      /**
+       * Return the response to client
+       */
+      res.setHeader('Content-Type', 'application/json')
+      res.send(JSON.stringify(data))
+    }).catch(function(error) {
+      console.log(error)
+    })
   
 });
+
+function formatDate(date) {
+  return date.toISOString().split('T')[0]
+}
 
 
 app.listen(3001, () =>
