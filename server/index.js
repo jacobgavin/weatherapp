@@ -25,7 +25,7 @@ app.get('/api/getPastDay', (req, res) => {
   var p = new Date()
   p.setDate(now.getDate() - parseInt(req.query.day) - 1)
   
-  const url = baseUrl + '?latitude='+req.query.lat+'&longitude='+req.query.long+'&hourly=temperature_2m&start_date='+formatDate(p)+'&end_date='+formatDate(y);
+  const url = baseUrl + '?latitude='+req.query.lat+'&longitude='+req.query.long+'&hourly=temperature_2m&start_date='+p.toISOString().split('T')[0]+'&end_date='+y.toISOString().split('T')[0];
 
   if (cache[url]) {
     console.log('Hit cache')
@@ -50,10 +50,6 @@ app.get('/api/getPastDay', (req, res) => {
     })
   
 });
-
-function formatDate(date) {
-  return date.toISOString().split('T')[0]
-}
 
 
 app.listen(3001, () =>
