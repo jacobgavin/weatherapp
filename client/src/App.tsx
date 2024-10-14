@@ -96,7 +96,6 @@ class App extends Component<{}, {weather: HistoryWeather | undefined, meanTemp?:
             <Loader />
           }
         </div>
-        <a className="footer" href="https://openweathermap.org/" target="_blank">Powered by OpenWeatherMap</a>
       </div>
     );
   }
