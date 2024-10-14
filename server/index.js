@@ -19,13 +19,13 @@ const cache = {}
 app.get('/api/getPastDay', (req, res) => {
   var now = new Date();
   
-  var yesterday = new Date();
-  yesterday.setDate(now.getDate() - 2)
+  var y = new Date();
+  y.setDate(now.getDate() - 2)
 
-  var past = new Date()
-  past.setDate(now.getDate() - parseInt(req.query.day) - 1)
+  var p = new Date()
+  p.setDate(now.getDate() - parseInt(req.query.day) - 1)
   
-  const url = `${baseUrl}?latitude=${req.query.lat}&longitude=${req.query.long}&hourly=temperature_2m&start_date=${formatDate(past)}&end_date=${formatDate(yesterday)}`
+  const url = baseUrl + '?latitude='+req.query.lat+'&longitude='+req.query.long+'&hourly=temperature_2m&start_date='+formatDate(p)+'&end_date='+formatDate(y);
 
   if (cache[url]) {
     console.log('Hit cache')
